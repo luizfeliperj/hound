@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -112,7 +113,32 @@ func runHttp( //nolint
 
 	m.Handle("/", h)
 	api.Setup(m, idx)
-	return http.ListenAndServe(addr, m)
+	if []byte(addr)[0] != '/' {
+		return http.ListenAndServe(addr, m)
+	}
+
+	if _, err := os.Stat(addr); !os.IsNotExist(err) {
+		os.Remove(addr)
+	}
+
+	listener, err := net.Listen("unix", addr)
+	if err != nil {
+		return err
+	}
+
+	if err := os.Chmod(addr, 0666); err != nil {
+		return err
+	}
+
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		<-sigs
+		os.Remove(addr)
+	}()
+
+	return (&http.Server{Handler: m}).Serve(listener)
 }
 
 // TODO: Automatically increment this when building a release

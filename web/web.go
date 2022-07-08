@@ -2,8 +2,12 @@ package web
 
 import (
 	"fmt"
+	"net"
 	"net/http"
+	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 
 	"github.com/hound-search/hound/api"
 	"github.com/hound-search/hound/config"
@@ -61,7 +65,36 @@ func Start(cfg *config.Config, addr string, dev bool) *Server {
 	}
 
 	go func() {
-		ch <- http.ListenAndServe(addr, s)
+
+		if []byte(addr)[0] != '/' {
+			ch <- http.ListenAndServe(addr, s)
+		}
+
+		if _, err := os.Stat(addr); !os.IsNotExist(err) {
+			os.Remove(addr)
+		}
+
+		listener, err := net.Listen("unix", addr)
+		if err != nil {
+			ch <- err
+		}
+
+		if err := os.Chmod(addr, 0666); err != nil {
+			ch <- err
+		}
+
+		srv := &http.Server{Handler: s}
+
+		sigs := make(chan os.Signal, 1)
+		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
+		go func() {
+			<-sigs
+			os.Remove(addr)
+			os.Exit(0)
+		}()
+
+		ch <- srv.Serve(listener)
 	}()
 
 	return s
