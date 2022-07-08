@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/etsy/hound/utf8"
 )
 
 const defaultRef = "master"
@@ -109,6 +111,7 @@ func (g *GitDriver) Pull(dir string) (string, error) {
 		return "", err
 	}
 
+	utf8.WalkForSourceFiles(dir)
 	return g.HeadRev(dir)
 }
 

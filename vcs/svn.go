@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/etsy/hound/utf8"
 )
 
 func init() {
@@ -70,6 +72,7 @@ func (g *SVNDriver) Pull(dir string) (string, error) {
 		return "", err
 	}
 
+	utf8.WalkForSourceFiles(dir)
 	return g.HeadRev(dir)
 }
 
@@ -92,6 +95,7 @@ func (g *SVNDriver) Clone(dir, url string) (string, error) {
 		return "", err
 	}
 
+	utf8.WalkForSourceFiles(dir)
 	return g.HeadRev(dir)
 }
 
